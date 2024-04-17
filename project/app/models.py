@@ -6,6 +6,10 @@ from django.db import models
 from django.contrib.auth.models import User 
 from django.template.defaultfilters import slugify
 from ckeditor.fields import RichTextField
+from django.core.files.temp import NamedTemporaryFile
+from django.core.files import File
+
+
 
 
 class Skill(models.Model):
@@ -59,7 +63,7 @@ class ContactProfile(models.Model):
 class Testimonial(models.Model):
     class meta:
             verbose_name_plural='Testimonials'
-            verbose_name ='Contact Profile'
+            verbose_name ='Testimonial '
             ordering = ["timestamp"]
 
     thumbnail = models.ImageField(blank=True , null= True , upload_to="testimonial")
@@ -70,14 +74,14 @@ class Testimonial(models.Model):
   
 
     def __str__(self):
-         return {self.name}        
+         return self.name        
     
 
 
 
 
 class Media(models.Model):
-    class meta:
+    class Meta:
             verbose_name_plural='Media Files'
             verbose_name ='Media'
             ordering = ["name"]
@@ -88,10 +92,22 @@ class Media(models.Model):
     name = models.CharField(max_length=200, blank=True, null=True)
     is_image= models.BooleanField(default=True)
   
-    def save(self, *args , **kwargs):
-         if self.url:
-              self.is_image =  False
-              super(Media, self). save(*args,**kwargs)
+def save(self, *args , **kwargs):
+          if self.url:
+               self.is_image = False
+
+          elif self.image:
+               self.is_image = True
+               # Check if the image file has been changed
+               if self.image.name != '':
+                    # Open the image file
+                    img_temp = NamedTemporaryFile(delete=True)
+                    img_temp.write(self.image.read())
+                    img_temp.flush()
+                    # Save the image file
+                    self.image.save(f"{self.name}.jpg", File(img_temp))    
+               
+               super(Media, self).save(*args, **kwargs)
 
 
 class Portfolio(models.Model):
@@ -116,7 +132,7 @@ class Portfolio(models.Model):
     def __str__(self):
          return self.name
                           
-    def get_deferred_fields(self):
+    def get_absolute_url(self):
          return f"/portfolio/{self.slug}"                    
     
 
@@ -129,15 +145,41 @@ class Blog(models.Model):
 
     timestamp = models.DateTimeField(auto_now_add=True)
     author = models.CharField(max_length=200,blank=True , null= True)
+    name = models.CharField(max_length=200, blank=True, null=True)
     description = models.CharField (max_length=500,blank=True, null=True)
     body = RichTextField( blank=True, null=True)
-    name = models.CharField(max_length=200, blank=True, null=True)
+    image = models.ImageField(blank=True,null=True,upload_to="blog")
     slug = models.SlugField(null=True, blank=True)
     is_active= models.BooleanField(default=True)
   
    
 
+    
+    def save(self, *args , **kwargs):
+         if not self.id:
+              self.slug =  slugify(self.name)
+              super(Blog, self).save(*args,**kwargs)   
+
     def __str__(self):
          return self.name
                           
+    def get_absolute_url(self):
+         return f"/blog/{self.slug}"   
+                          
                   
+class Certificate(models.Model):
+    class meta:
+            verbose_name_plural ='Certificates'
+            verbose_name ='Certificate'
+            
+
+    date = models.DateTimeField(blank=True , null= True)
+    description = models.CharField (max_length=500,blank=True, null=True)
+    title = models.CharField( max_length=200,blank=True, null=True)
+    name = models.CharField(max_length=500, blank=True, null=True)
+    is_active= models.BooleanField(default=True)
+  
+    def __str__(self):
+         return self.name
+                          
+                    
